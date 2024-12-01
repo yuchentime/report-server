@@ -2,12 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { ZhipuAI } from 'zhipuai-sdk-nodejs-v4';
 import * as path from 'path';
 import * as fs from 'fs';
-import { gist_system_prompt } from './data/constant';
+import { gist_system_prompt } from './common/constant';
+import { ReportDao } from './dao/report.dao';
+import { Report } from './dto/Report';
 
 @Injectable()
 export class AppService {
+  constructor(private readonly reportDao: ReportDao) {}
+
   async scanFiles() {
-    const directory = process.env.FIEL_PATHS;
+    const directory = process.env.LOCAL_FIELS_PATH;
     const fileFullPaths = await this.scanDirectory(directory);
     console.log('==> ', fileFullPaths);
     for (const fileFullPath of fileFullPaths) {
@@ -23,7 +27,18 @@ export class AppService {
       }
       console.log('提取到文件摘要');
       const gist = await this.extractGists(summary);
-      console.log(gist);
+      if (gist) {
+        console.log('提取到文件gist, 准备保存落库');
+        const report = new Report();
+        report.name = fileName;
+        report.download_url = path.join(
+          process.env.DOWNLOAD_FIELS_PATH,
+          fileName,
+        );
+        report.summary = "";
+        report.description = gist;
+        await this.reportDao.save(report);
+      }
     }
   }
 
@@ -69,7 +84,6 @@ export class AppService {
       },
     });
     const summary = await summaryRes.json();
-    console.log('摘要响应：', summary);
     const deleteFileApi = `https://open.bigmodel.cn/api/paas/v4/files/${fileId}`;
     const deleteRes: any = await fetch(deleteFileApi, {
       method: 'DELETE',
@@ -77,8 +91,7 @@ export class AppService {
         Authorization: `Bearer ${process.env.ZHIPUAI_API_KEY}`,
       },
     });
-    console.log('删除文件响应: ', deleteRes);
-    console.log('总结内容: ', summary?.content);
+    console.log('删除文件响应状态码: ', deleteRes.status);
     return summary?.content;
   }
 
