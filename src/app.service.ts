@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ZhipuAI } from 'zhipuai-sdk-nodejs-v4';
 import * as path from 'path';
 import * as fs from 'fs';
+import { gist_system_prompt } from './data/constant';
 
 @Injectable()
 export class AppService {
@@ -88,47 +89,12 @@ export class AppService {
    */
   async extractGists(summary: string): Promise<string> {
     const ai = new ZhipuAI({});
-    const systemPrompt = `
-      ## 角色
-      - 资深的文字编辑工作者
-      ## 任务
-      - 根据用户提供的报告内容，使用中文进行归纳总结
-      ## 要求
-      - 提取报告中的每一个核心要点，确保不要遗漏，这对我很重要
-      - 针对每个要点提供30字以内的简短说明
-      - 务必条理清晰
-      - 不要展示跟核心要点无关的内容
-      ## 附加动作
-      - 在总结后面补充针对该报告提出的5个相关的值得思考的问题
-      - 标题：“值得思考的问题？”
-      ## 输出格式
-      - HTML格式
-      ## 参考如下示例中的内容格式:
-      ---示例开始---
-      <div>
-        <h2>核心内容总结</h2>
-        <p><strong>研究背景：</strong>IBM商业价值研究院联合牛津经济研究院对全球2000位CFO进行调研，探讨在生成式AI时代CFO如何应对挑战。</p>
-        <p><strong>CFO角色转变：</strong>CFO从传统财务角色转变为深入业务、提供洞察的角色，需引领组织变革。</p>
-        <p><strong>关键举措：</strong>报告提出六项关键举措，包括技术置于核心、战略执行力、投资回报展示、风险管理、数据作为AI氧气、人才革命。</p>
-        <p><strong>高绩效CFO特质：</strong>高绩效CFO通过聚焦战略性未来、高效执行战略、快速响应市场变化、敏锐发现推动竞争优势的技术而脱颖而出。</p>
-        <p><strong>技术与业务融合：</strong>技术战略与业务战略密不可分，CFO在此融合中发挥关键作用。</p>
-      </div>
-      <div>
-        <h2>值得思考的问题？</h2>
-        <ul>
-          <li>如何在确保数据安全和隐私的前提下，有效地利用数据驱动决策？</li>
-          <li>CFO如何评估和选择适合组织的技术投资，以确保长期竞争力？</li>
-          <li>在人才培养方面，CFO应如何平衡现有员工的技能提升与新技能人才的招聘？</li>
-        </ul>
-      </div>  
-      ---示例结束---  
-    `;
     const data: any = await ai.createCompletions({
       model: 'glm-4-long',
       messages: [
         {
           role: 'system',
-          content: systemPrompt,
+          content: gist_system_prompt,
         },
         { role: 'user', content: `请帮我总结归纳如下内容: ${summary}` },
       ],
