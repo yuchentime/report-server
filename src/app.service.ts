@@ -1,10 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { ZhipuAI } from 'zhipuai-sdk-nodejs-v4';
-import * as path from 'path';
 import * as fs from 'fs';
-import { gist_system_prompt } from './common/constant';
+import * as path from 'path';
+import { ZhipuAI } from 'zhipuai-sdk-nodejs-v4';
+import { gist_system_prompt, table_report } from './common/constant';
 import { ReportDao } from './dao/report.dao';
-import { Report } from './dto/Report';
 
 @Injectable()
 export class AppService {
@@ -24,7 +23,7 @@ export class AppService {
 
           // 判断文件名是否已落库
           const fileInfoData = await this.reportDao.executeQuery(
-            `select * from file_info where name = '${fileName}'`,
+            `select * from ${table_report} where name = '${fileName}'`,
           );
           console.log('查询结果: ', fileInfoData);
           if (!fileInfoData || fileInfoData.length === 0) {
@@ -76,6 +75,15 @@ export class AppService {
           console.log('提取到文件二进制内容');
           const fileName = path.basename(fileFullPath);
           console.log('提取到文件名: ', fileName);
+          // 判断文件名是否已落库
+          const fileInfoData = await this.reportDao.executeQuery(
+            `select * from ${table_report} where name = '${fileName}'`,
+          );
+          console.log('查询结果: ', fileInfoData);
+          if (!fileInfoData || fileInfoData.length === 0) {
+            console.log('文件未落库');
+            reject('文件未落库');
+          }
         });
       }),
     ).then((reports) => {

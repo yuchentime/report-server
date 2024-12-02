@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Report } from '../dto/Report';
+import { table_report } from 'src/common/constant';
 
 @Injectable()
 export class ReportDao {
@@ -8,16 +9,16 @@ export class ReportDao {
     // 执行insert语句
     let sql = "";
     if (report.id) {
-      sql = `UPDATE file_info SET name = '${report.name}', download_url = '${report.download_url}', summary = '${report.summary}', description = '${report.description}', ext_json = '${report.ext_json}' WHERE id = ${report.id}`;
+      sql = `UPDATE ${table_report} SET name = '${report.name}', download_url = '${report.download_url}', summary = '${report.summary}', description = '${report.description}', ext_json = '${report.ext_json}' WHERE id = ${report.id}`;
     } else {
-      sql = `INSERT INTO file_info (name, download_url, summary , description, ext_json) VALUES ('${report.name}', '${report.download_url}', '${report.summary}', '${report.description}', '${report.ext_json}')`;
+      sql = `INSERT INTO ${table_report} (name, download_url, summary , description, ext_json) VALUES ('${report.name}', '${report.download_url}', '${report.summary}', '${report.description}', '${report.ext_json}')`;
     }
     console.log('insertSql: ', sql);
     await this.executeSave(sql);
   }
 
   async query(report: Report) {
-    let querySql = `SELECT * FROM file_info`;
+    let querySql = `SELECT * FROM ${table_report}`;
     if (report) {
       querySql += ` WHERE 1=1`;
       if (report.id) {
