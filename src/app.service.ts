@@ -10,47 +10,83 @@ import { Report } from './dto/Report';
 export class AppService {
   constructor(private readonly reportDao: ReportDao) {}
 
-  async scanFiles() {
+  async summary() {
     const directory = process.env.LOCAL_FIELS_PATH;
     const fileFullPaths = await this.scanDirectory(directory);
     console.log('==> ', fileFullPaths);
-    for (const fileFullPath of fileFullPaths) {
-      // 读取文件二进制内容
-      const data = fs.readFileSync(fileFullPath);
-      console.log('提取到文件二进制内容');
-      const fileName = path.basename(fileFullPath);
+    Promise.allSettled(
+      fileFullPaths.map(async (fileFullPath) => {
+        return new Promise(async (resolve, reject) => {
+          // 读取文件二进制内容
+          const data = fs.readFileSync(fileFullPath);
+          console.log('提取到文件二进制内容');
+          const fileName = path.basename(fileFullPath);
 
-      // todo 判断文件名是否已落库
-      const fileInfoData = await this.reportDao.executeQuery(`select * from file_info where name = '${fileName}'`);
-      console.log('查询结果: ', fileInfoData);
-      if (fileInfoData) {
-        console.log('文件已落库, 跳过');
-        continue;
-      }
+          // 判断文件名是否已落库
+          const fileInfoData = await this.reportDao.executeQuery(
+            `select * from file_info where name = '${fileName}'`,
+          );
+          console.log('查询结果: ', fileInfoData);
+          if (!fileInfoData || fileInfoData.length === 0) {
+            console.log('文件未落库');
+            reject('文件未落库');
+          }
 
-      console.log('提取到文件名: ', fileName);
-      const summary = await this.extractSummary(data, fileName);
-      if (!summary) {
-        console.log('没有提取到文件摘要');
-        continue;
-      }
-      console.log('提取到文件摘要');
-      const gist = await this.extractGists(summary);
-      if (gist) {
-        console.log('提取到文件gist, 准备保存落库');
-        const report = new Report();
-        report.name = fileName;
-        report.download_url = path.join(
-          process.env.DOWNLOAD_FIELS_PATH,
-          fileName,
-        );
-        report.summary = "";
-        report.description = gist;
-        await this.reportDao.save(report);
-        // todo 保存到向量空间
+          console.log('提取到文件名: ', fileName);
+          const summary = await this.extractSummary(data, fileName);
+          if (!summary) {
+            console.log('没有提取到文件摘要');
+            reject('没有提取到文件摘要');
+          }
+          console.log('提取到文件摘要');
 
-      }
-    }
+          const gist = await this.extractGists(summary);
+          if (gist) {
+            console.log('提取到文件gist, 准备保存落库');
+            const report = fileInfoData[0];
+            report.name = fileName;
+            report.download_url = path.join(
+              process.env.DOWNLOAD_FIELS_PATH,
+              fileName,
+            );
+            report.summary = gist.replace(/\n/g, '');
+            await this.reportDao.save(report);
+
+            // todo 保存摘要到向量空间
+
+            resolve(report);
+          }
+        });
+      }),
+    ).then((reports) => {
+      console.log('reports: ', reports);
+      return reports;
+    });
+  }
+
+  async extractPdfImages(pdfPath: string): Promise<string> {
+    const directory = process.env.LOCAL_FIELS_PATH;
+    const fileFullPaths = await this.scanDirectory(directory);
+    console.log('==> ', fileFullPaths);
+    Promise.allSettled(
+      fileFullPaths.map(async (fileFullPath) => {
+        return new Promise(async (resolve, reject) => {
+          // 读取文件二进制内容
+          const data = fs.readFileSync(fileFullPath);
+          console.log('提取到文件二进制内容');
+          const fileName = path.basename(fileFullPath);
+          console.log('提取到文件名: ', fileName);
+        });
+      }),
+    ).then((reports) => {
+      console.log('reports: ', reports);
+      return reports;
+    });
+    // todo 提取PDF指定页面图片，保存到R2，获取图片URL
+
+    // todo 更新图片URL到数据库
+
+    return '';
   }
 
   async scanDirectory(directory: string): Promise<string[]> {
@@ -130,17 +166,13 @@ export class AppService {
   /**
    * 保存到向量数据库
    */
-  async saveVector() {
-
-  }
+  async saveVector() {}
 
   /**
    * 从pdf中提取前3页并转换成图片保存
    */
   async extractImages() {
     // 提取前3页
-
     // 压缩图片
-
   }
 }

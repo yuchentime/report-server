@@ -6,9 +6,14 @@ export class ReportDao {
   async save(report: Report) {
     // 将Report转写成一条insert语句
     // 执行insert语句
-    const insertSql = `INSERT INTO file_info (name, download_url, summary , description, ext_json) VALUES ('${report.name}', '${report.download_url}', '${report.summary}', '${report.description}', '${report.ext_json}')`;
-    console.log('insertSql: ', insertSql);
-    await this.executeSave(insertSql);
+    let sql = "";
+    if (report.id) {
+      sql = `UPDATE file_info SET name = '${report.name}', download_url = '${report.download_url}', summary = '${report.summary}', description = '${report.description}', ext_json = '${report.ext_json}' WHERE id = ${report.id}`;
+    } else {
+      sql = `INSERT INTO file_info (name, download_url, summary , description, ext_json) VALUES ('${report.name}', '${report.download_url}', '${report.summary}', '${report.description}', '${report.ext_json}')`;
+    }
+    console.log('insertSql: ', sql);
+    await this.executeSave(sql);
   }
 
   async query(report: Report) {
