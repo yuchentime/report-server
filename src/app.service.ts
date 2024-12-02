@@ -19,6 +19,15 @@ export class AppService {
       const data = fs.readFileSync(fileFullPath);
       console.log('提取到文件二进制内容');
       const fileName = path.basename(fileFullPath);
+
+      // todo 判断文件名是否已落库
+      const fileInfoData = await this.reportDao.executeQuery(`select * from file_info where name = '${fileName}'`);
+      console.log('查询结果: ', fileInfoData);
+      if (fileInfoData) {
+        console.log('文件已落库, 跳过');
+        continue;
+      }
+
       console.log('提取到文件名: ', fileName);
       const summary = await this.extractSummary(data, fileName);
       if (!summary) {
@@ -38,6 +47,8 @@ export class AppService {
         report.summary = "";
         report.description = gist;
         await this.reportDao.save(report);
+        // todo 保存到向量空间
+
       }
     }
   }
@@ -114,5 +125,22 @@ export class AppService {
       stream: false,
     });
     return data?.choices[0].message.content;
+  }
+
+  /**
+   * 保存到向量数据库
+   */
+  async saveVector() {
+
+  }
+
+  /**
+   * 从pdf中提取前3页并转换成图片保存
+   */
+  async extractImages() {
+    // 提取前3页
+
+    // 压缩图片
+
   }
 }
