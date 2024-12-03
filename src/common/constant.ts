@@ -1,4 +1,4 @@
-export const table_report = 'file_info';
+export const table_report = 'report_info';
 
 export const gist_system_prompt = `
 ## 角色

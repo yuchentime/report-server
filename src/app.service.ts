@@ -24,36 +24,29 @@ export class AppService {
           const fileName = path.basename(fileFullPath);
 
           // 判断文件名是否已落库
-          const fileInfoData = await this.reportDao.executeQuery(
-            `select * from ${table_report} where name = '${fileName}'`,
-          );
-          console.log('查询结果: ', fileInfoData);
-          if (!fileInfoData || fileInfoData.length === 0) {
+          const reportInDb = await this.reportDao.queryByName(fileName);
+          console.log('查询结果: ', reportInDb);
+          if (!reportInDb) {
             console.log('文件未落库');
             reject('文件未落库');
           }
 
           console.log('提取到文件名: ', fileName);
-          const summary = await this.extractSummary(data, fileName);
-          if (!summary) {
+          const extractedContent = await this.extractContent(data, fileName);
+          if (!extractedContent) {
             console.log('没有提取到文件摘要');
             reject('没有提取到文件摘要');
           }
           console.log('提取到文件摘要');
 
-          const gist = await this.extractGists(summary);
-          if (gist) {
+          const summary = await this.extractSummary(extractedContent);
+          if (summary) {
             console.log('提取到文件gist, 准备保存落库');
-            const report = fileInfoData[0];
-            report.name = fileName;
-            report.download_url = path.join(
-              process.env.PDF_PATH,
-              fileName,
-            );
-            report.summary = gist.replace(/\n/g, '');
-            await this.reportDao.save(report);
+            reportInDb.name = fileName;
+            reportInDb.summary = summary.replace(/\n/g, '');
+            await this.reportDao.update(reportInDb);
 
-            resolve(report);
+            resolve(reportInDb);
           }
         });
       }),
@@ -73,21 +66,13 @@ export class AppService {
           const fileName = path.basename(fileFullPath);
           console.log('提取到文件名: ', fileName);
           // 判断文件名是否已落库
-          const fileInfoData = await this.reportDao.executeQuery(
-            `select * from ${table_report} where name = '${fileName}'`,
-          );
-          console.log('查询结果: ', fileInfoData);
-          if (!fileInfoData || fileInfoData.length === 0) {
+          const reportInDb = await this.reportDao.queryByName(fileName);
+          console.log('查询结果: ', reportInDb);
+          if (!reportInDb) {
             console.log('文件未落库');
             reject('文件未落库');
           }
-          const report = fileInfoData[0] as any;
-          if (!report) {
-            console.log('文件未落库: ', report);
-            reject('文件未落库');
-          }
-
-          const imageNamePrefix = String(10000 + Number(report.id));
+          const imageNamePrefix = String(10000 + Number(reportInDb.id));
           // todo 提取PDF指定页面图片，保存到R2，获取图片URL
           const imagePaths = await pdfUtil.convertPDFPagesToImages(fileFullPath, [2, 3, 4], process.env.IMAGE_PATH, imageNamePrefix);
 
@@ -99,10 +84,10 @@ export class AppService {
             r2ImageUrls.push(process.env.R2_IMAGE_BASE_URL + "/" + imageName);
           }
 
-          report.download_url = r2ImageUrls.join(',');
-          await this.reportDao.save(report);
+          reportInDb.download_url = r2ImageUrls.join(',');
+          await this.reportDao.update(reportInDb);
 
-          resolve(report);
+          resolve(reportInDb);
         });
       }),
     ).then((reports) => {
@@ -130,7 +115,7 @@ export class AppService {
     return files;
   }
 
-  async extractSummary(file: Buffer, fileName: string): Promise<string> {
+  async extractContent(file: Buffer, fileName: string): Promise<string> {
     const formData = new FormData();
     formData.append('file', new Blob([file]), fileName);
     formData.append('purpose', 'file-extract');
@@ -171,7 +156,7 @@ export class AppService {
    * @param summary
    * @returns
    */
-  async extractGists(summary: string): Promise<string> {
+  async extractSummary(summary: string): Promise<string> {
     const ai = new ZhipuAI({});
     const data: any = await ai.createCompletions({
       model: 'glm-4-long',

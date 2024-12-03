@@ -4,17 +4,28 @@ import { table_report } from 'src/common/constant';
 
 @Injectable()
 export class ReportDao {
-  async save(report: Report) {
-    // 将Report转写成一条insert语句
-    // 执行insert语句
-    let sql = "";
-    if (report.id) {
-      sql = `UPDATE ${table_report} SET name = '${report.name}', download_url = '${report.download_url}', summary = '${report.summary}', description = '${report.description}', ext_json = '${report.ext_json}' WHERE id = ${report.id}`;
-    } else {
-      sql = `INSERT INTO ${table_report} (name, download_url, summary , description, ext_json) VALUES ('${report.name}', '${report.download_url}', '${report.summary}', '${report.description}', '${report.ext_json}')`;
+
+  async insert(report: Report) {
+    const data = await this.queryByName(report.name);
+    if (!data) {
+      return;
     }
-    console.log('insertSql: ', sql);
+    const sql = `INSERT INTO ${table_report} (name, pages, published_date) VALUES ('${report.name}', '${report.pages}', '${report.published_date}')`;
+    this.executeSave(sql);
+  }
+
+  async update(report: Report) {
+    const sql = `UPDATE ${table_report} SET name = '${report.name}', download_url = '${report.download_url}', summary = '${report.summary}', ext = '${report.ext}' WHERE id = ${report.id}`;
     await this.executeSave(sql);
+  }
+
+  async queryByName(name: string) {
+    const sql = `SELECT * FROM ${table_report} WHERE name = '${name}'`;
+    const data = await this.executeQuery(sql);
+    if(!data || data.length === 0) {
+      return null;
+    }
+    return data[0];
   }
 
   async query(report: Report) {
