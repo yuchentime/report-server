@@ -91,7 +91,7 @@ export class AppService {
       if (summary) {
         console.log('提取到文件gist, 准备保存落库');
         reportInDb.name = fileName;
-        reportInDb.summary = summary.replace(/\n/g, '');
+        reportInDb.summary = summary.replace(/\n/g, '').replace(/```html/g, '').replace(/```/g, '');
         await this.reportDao.update(reportInDb);
 
         resolve(reportInDb);
