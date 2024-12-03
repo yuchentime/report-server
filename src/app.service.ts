@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ZhipuAI } from 'zhipuai-sdk-nodejs-v4';
-import { gist_system_prompt, table_report } from './common/constant';
+import { gist_system_prompt } from './common/constant';
 import * as pdfUtil from './common/pdfUtil';
 import * as R2Util from './common/R2Util';
 import { ReportDao } from './dao/report.dao';
@@ -11,91 +11,124 @@ import { ReportDao } from './dao/report.dao';
 export class AppService {
   constructor(private readonly reportDao: ReportDao) { }
 
-  async summary() {
-    const directory = process.env.PDF_PATH;
-    const fileFullPaths = await this.scanDirectory(directory);
-    console.log('==> ', fileFullPaths);
-    Promise.allSettled(
-      fileFullPaths.map(async (fileFullPath) => {
-        return new Promise(async (resolve, reject) => {
-          // 读取文件二进制内容
-          const data = fs.readFileSync(fileFullPath);
-          console.log('提取到文件二进制内容');
-          const fileName = path.basename(fileFullPath);
-
-          // 判断文件名是否已落库
-          const reportInDb = await this.reportDao.queryByName(fileName);
-          console.log('查询结果: ', reportInDb);
-          if (!reportInDb) {
-            console.log('文件未落库');
-            reject('文件未落库');
-          }
-
-          console.log('提取到文件名: ', fileName);
-          const extractedContent = await this.extractContent(data, fileName);
-          if (!extractedContent) {
-            console.log('没有提取到文件摘要');
-            reject('没有提取到文件摘要');
-          }
-          console.log('提取到文件摘要');
-
-          const summary = await this.extractSummary(extractedContent);
-          if (summary) {
-            console.log('提取到文件gist, 准备保存落库');
-            reportInDb.name = fileName;
-            reportInDb.summary = summary.replace(/\n/g, '');
-            await this.reportDao.update(reportInDb);
-
-            resolve(reportInDb);
-          }
-        });
-      }),
-    ).then((reports) => {
-      console.log('reports: ', reports);
-      return reports;
+  async insertReport(name: string, pageCount: number, publishedDate: number) {
+    await this.reportDao.insert({
+      name: this.replaceName(name),
+      summary: '',
+      download_url: '',
+      pages: pageCount,
+      published_date: publishedDate,
+      ext: '{}',
     });
   }
 
-  async extractPdfImages(): Promise<string> {
-    const directory = process.env.PDF_PATH;
+  async summary() {
+    const directory = process.env.LOCAL_PDF_PATH;
     const fileFullPaths = await this.scanDirectory(directory);
     console.log('==> ', fileFullPaths);
-    Promise.allSettled(
-      fileFullPaths.map(async (fileFullPath) => {
-        return new Promise(async (resolve, reject) => {
-          const fileName = path.basename(fileFullPath);
-          console.log('提取到文件名: ', fileName);
-          // 判断文件名是否已落库
-          const reportInDb = await this.reportDao.queryByName(fileName);
-          console.log('查询结果: ', reportInDb);
-          if (!reportInDb) {
-            console.log('文件未落库');
-            reject('文件未落库');
-          }
-          const imageNamePrefix = String(10000 + Number(reportInDb.id));
-          // todo 提取PDF指定页面图片，保存到R2，获取图片URL
-          const imagePaths = await pdfUtil.convertPDFPagesToImages(fileFullPath, [2, 3, 4], process.env.IMAGE_PATH, imageNamePrefix);
+    // 每10个fileFullPaths为一批处理，每批间隔5秒
+    for (let i = 0; i < fileFullPaths.length; i += 10) {
+      const batch = fileFullPaths.slice(i, i + 10);
+      console.log('batch: ', batch);
+      Promise.allSettled(
+        batch.map(async (fileFullPath) => {
+          this.writeSummary(fileFullPath);
+        }),
+      ).then((reports) => {
+        console.log('reports: ', reports);
+        return reports;
+      });
+      await new Promise((resolve) => setTimeout(resolve, 10000));
+    }
+    console.log('pdf摘要完毕');
+  }
 
-          const r2ImageUrls: string[] = [];
-          for (const imagePath of imagePaths) {
-            const imageName = path.basename(imagePath);
-            await R2Util.uploadToR2(imagePath, imageName);
-            fs.unlinkSync(imagePath);
-            r2ImageUrls.push(process.env.R2_IMAGE_BASE_URL + "/" + imageName);
-          }
+  async extractPdfImages() {
+    const directory = process.env.LOCAL_PDF_PATH;
+    const fileFullPaths = await this.scanDirectory(directory);
+    console.log('==> ', fileFullPaths);
 
-          reportInDb.download_url = r2ImageUrls.join(',');
-          await this.reportDao.update(reportInDb);
+    for (let i = 0; i < fileFullPaths.length; i += 10) {
+      const batch = fileFullPaths.slice(i, i + 10);
+      console.log('batch: ', batch);
+      Promise.allSettled(
+        batch.map(async (fileFullPath) => {
+          this.writePdfImages(fileFullPath);
+        }),
+      ).then((reports) => {
+        console.log('reports: ', reports);
+        return reports;
+      });
+      await new Promise((resolve) => setTimeout(resolve, 10000));
+    }
+    console.log('pdf图片提取完毕');
+  }
 
-          resolve(reportInDb);
-        });
-      }),
-    ).then((reports) => {
-      console.log('reports: ', reports);
-      return reports;
+  async writeSummary(fileFullPath: string): Promise<string> {
+    return new Promise(async (resolve, reject) => {
+      // 读取文件二进制内容
+      const data = fs.readFileSync(fileFullPath);
+      console.log('提取到文件二进制内容');
+      const fileName = this.replaceName(path.basename(fileFullPath));
+
+      // 判断文件名是否已落库
+      const reportInDb = await this.reportDao.queryByName(fileName);
+      console.log('查询结果: ', reportInDb);
+      if (!reportInDb) {
+        console.log('文件未落库');
+        reject('文件未落库');
+      }
+
+      console.log('提取到文件名: ', fileName);
+      const extractedContent = await this.extractContent(data, fileName + ".pdf");
+      if (!extractedContent) {
+        console.log('没有提取到文件摘要');
+        reject('没有提取到文件摘要');
+      }
+      console.log('提取到文件摘要');
+
+      const summary = await this.extractSummary(extractedContent);
+      if (summary) {
+        console.log('提取到文件gist, 准备保存落库');
+        reportInDb.name = fileName;
+        reportInDb.summary = summary.replace(/\n/g, '');
+        await this.reportDao.update(reportInDb);
+
+        resolve(reportInDb);
+      }
     });
+  }
 
-    return '';
+  async writePdfImages(fileFullPath: string) {
+    return new Promise(async (resolve, reject) => {
+      const fileName = this.replaceName(path.basename(fileFullPath));
+      console.log('提取到文件名: ', fileName);
+      // 判断文件名是否已落库
+      const reportInDb = await this.reportDao.queryByName(fileName);
+      console.log('查询结果: ', reportInDb);
+      if (!reportInDb) {
+        console.log('文件未落库');
+        reject('文件未落库');
+      }
+      const imageNamePrefix = String(10000 + Number(reportInDb.id));
+      // todo 提取PDF指定页面图片，保存到R2，获取图片URL
+      const imagePaths = await pdfUtil.convertPDFPagesToImages(fileFullPath, [2, 3, 4], process.env.LOCAL_IMAGE_PATH, imageNamePrefix);
+
+      const r2ImageUrls: string[] = [];
+      for (const imagePath of imagePaths) {
+        let imageName = path.basename(imagePath);
+        imageName = imageName.replace('.png', '').replace(".", "") + '.png';
+
+        await R2Util.uploadToR2(imagePath, imageName);
+        fs.unlinkSync(imagePath);
+        r2ImageUrls.push(process.env.R2_IMAGE_BASE_URL + "/" + imageName);
+      }
+
+      reportInDb.download_url = r2ImageUrls.join(',');
+      await this.reportDao.update(reportInDb);
+
+      resolve(reportInDb);
+    });
   }
 
   async scanDirectory(directory: string): Promise<string[]> {
@@ -170,6 +203,10 @@ export class AppService {
       stream: false,
     });
     return data?.choices[0].message.content;
+  }
+
+  replaceName(fileName: string): string {
+    return fileName.replace('【发现报告 fxbaogao.com】', '').replace('.pdf', '');
   }
 
 }

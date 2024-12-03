@@ -1,5 +1,5 @@
 export class Report {
-  id: number;
+  id?: number;
   name: string;
   download_url: string;
   summary: string;

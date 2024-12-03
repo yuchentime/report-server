@@ -7,10 +7,11 @@ export class ReportDao {
 
   async insert(report: Report) {
     const data = await this.queryByName(report.name);
-    if (!data) {
+    if (data) {
       return;
     }
-    const sql = `INSERT INTO ${table_report} (name, pages, published_date) VALUES ('${report.name}', '${report.pages}', '${report.published_date}')`;
+    const sql = `INSERT INTO ${table_report} (name, pages, published_date) VALUES ('${report.name}', ${report.pages}, ${report.published_date})`;
+    console.log(sql);
     this.executeSave(sql);
   }
 
@@ -21,8 +22,9 @@ export class ReportDao {
 
   async queryByName(name: string) {
     const sql = `SELECT * FROM ${table_report} WHERE name = '${name}'`;
+    console.log(sql);
     const data = await this.executeQuery(sql);
-    if(!data || data.length === 0) {
+    if (!data || data.length === 0) {
       return null;
     }
     return data[0];
@@ -45,19 +47,19 @@ export class ReportDao {
 
   async executeSave(sql: string) {
     try {
-        const response = await fetch(process.env.CLOUDFLARE_DATABASE_URL, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'text/plain',
-              Authorization: `Bearer ${process.env.CLOUDFLARE_SECRET_TOKEN}`,
-            },
-            body: sql,
-          });
-          if (response.ok) {
-            console.log('Data saved successfully');
-          } else {
-            console.error('Error saving data:', response.statusText);
-          }
+      const response = await fetch(process.env.CLOUDFLARE_DATABASE_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain',
+          Authorization: `Bearer ${process.env.CLOUDFLARE_SECRET_TOKEN}`,
+        },
+        body: sql,
+      });
+      if (response.ok) {
+        console.log('Data saved successfully');
+      } else {
+        console.error('Error saving data:', response.statusText);
+      }
     } catch (error) {
       console.error('Error saving data:', error?.message);
     }
