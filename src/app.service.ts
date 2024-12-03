@@ -16,6 +16,7 @@ export class AppService {
       name: this.replaceName(name),
       summary: '',
       download_url: '',
+      example_image_url: '',
       pages: pageCount,
       published_date: publishedDate,
       ext: '{}',
@@ -47,14 +48,12 @@ export class AppService {
     const directory = process.env.LOCAL_PDF_PATH;
     const fileFullPaths = await this.scanDirectory(directory);
     console.log('==> ', fileFullPaths);
-
     for (let i = 0; i < fileFullPaths.length; i += 10) {
       const batch = fileFullPaths.slice(i, i + 10);
-      console.log('batch: ', batch);
       Promise.allSettled(
-        batch.map(async (fileFullPath) => {
-          this.writePdfImages(fileFullPath);
-        }),
+        batch.map((fileFullPath) =>
+          this.writePdfImages(fileFullPath)
+        ),
       ).then((reports) => {
         console.log('reports: ', reports);
         return reports;
@@ -110,9 +109,13 @@ export class AppService {
         console.log('文件未落库');
         reject('文件未落库');
       }
-      const imageNamePrefix = String(10000 + Number(reportInDb.id));
-      // todo 提取PDF指定页面图片，保存到R2，获取图片URL
-      const imagePaths = await pdfUtil.convertPDFPagesToImages(fileFullPath, [2, 3, 4], process.env.LOCAL_IMAGE_PATH, imageNamePrefix);
+
+      const fileId = String(10000 + Number(reportInDb.id));
+      // 上传pdf文件
+      await R2Util.uploadToR2(fileFullPath, fileId + ".pdf");
+
+      // 提取并上传pdf的样例图片
+      const imagePaths = await pdfUtil.convertPDFPagesToImages(fileFullPath, [2, 3, 4], process.env.LOCAL_IMAGE_PATH, fileId);
 
       const r2ImageUrls: string[] = [];
       for (const imagePath of imagePaths) {
@@ -124,7 +127,8 @@ export class AppService {
         r2ImageUrls.push(process.env.R2_IMAGE_BASE_URL + "/" + imageName);
       }
 
-      reportInDb.download_url = r2ImageUrls.join(',');
+      reportInDb.download_url = process.env.R2_IMAGE_BASE_URL + "/" + fileId + ".pdf";
+      reportInDb.example_image_url = r2ImageUrls.join(',');
       await this.reportDao.update(reportInDb);
 
       resolve(reportInDb);

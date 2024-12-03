@@ -16,7 +16,7 @@ export class ReportDao {
   }
 
   async update(report: Report) {
-    const sql = `UPDATE ${table_report} SET name = '${report.name}', download_url = '${report.download_url}', summary = '${report.summary}', ext = '${report.ext}' WHERE id = ${report.id}`;
+    const sql = `UPDATE ${table_report} SET name = '${report.name}', download_url = '${report.download_url}', example_image_url = '${report.example_image_url}', summary = '${report.summary}', ext = '${report.ext}' WHERE id = ${report.id}`;
     await this.executeSave(sql);
   }
 
