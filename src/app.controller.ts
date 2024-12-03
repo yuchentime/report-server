@@ -14,6 +14,7 @@ export class AppController {
 
   @Get("/img")
   async img() {
-    await pdfUtil.convertPdfPageToImage(path.join(process.env.LOCAL_FIELS_PATH, "Enhanced Retrieval-Augmented Reasoning with Open-Source Large Language Models.pdf"), 1, path.join(process.env.LOCAL_FIELS_PATH, "img.png"));
+    await pdfUtil.convertPDFPagesToImages(path.join(process.env.DOWNLOAD_FIELS_PATH, "【安永】智启新质生产力之二：生成式人工智能（AIGC）在医药零售的潜在应用【发现报告 fxbaogao.com】.pdf")
+    , 2, 2, process.env.DOWNLOAD_FIELS_PATH);
   }
 }

@@ -4,10 +4,12 @@ import * as path from 'path';
 import { ZhipuAI } from 'zhipuai-sdk-nodejs-v4';
 import { gist_system_prompt, table_report } from './common/constant';
 import { ReportDao } from './dao/report.dao';
+import { PDFDocument } from 'pdf-lib';
+import { fromPath } from "pdf2pic";
 
 @Injectable()
 export class AppService {
-  constructor(private readonly reportDao: ReportDao) {}
+  constructor(private readonly reportDao: ReportDao) { }
 
   async summary() {
     const directory = process.env.LOCAL_FIELS_PATH;
@@ -52,6 +54,7 @@ export class AppService {
             await this.reportDao.save(report);
 
             // todo 保存摘要到向量空间
+            this.saveVector();
 
             resolve(report);
           }
@@ -84,15 +87,17 @@ export class AppService {
             console.log('文件未落库');
             reject('文件未落库');
           }
+
+          // todo 提取PDF指定页面图片，保存到R2，获取图片URL
+
+          // todo 更新图片URL到数据库
+
         });
       }),
     ).then((reports) => {
       console.log('reports: ', reports);
       return reports;
     });
-    // todo 提取PDF指定页面图片，保存到R2，获取图片URL
-
-    // todo 更新图片URL到数据库
 
     return '';
   }
@@ -174,13 +179,49 @@ export class AppService {
   /**
    * 保存到向量数据库
    */
-  async saveVector() {}
+  async saveVector() { }
 
   /**
    * 从pdf中提取前3页并转换成图片保存
    */
-  async extractImages() {
+  async extractImages(pdfPath: string, pageNumber: number, outputImagePath: string) {
     // 提取前3页
     // 压缩图片
+    // 读取 PDF 文件
+    const pdfBuffer = fs.readFileSync(pdfPath);
+
+    // 加载 PDF 文档
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
+
+    // 提取指定页码的页面
+    const [page] = await pdfDoc.copyPages(pdfDoc, [pageNumber - 1]);
+
+    // 创建一个新的 PDF 文档并将页面添加到其中
+    const newPdfDoc = await PDFDocument.create();
+    newPdfDoc.addPage(page);
+
+    // 将新的 PDF 文档保存为 Buffer
+    const newPdfBytes = await newPdfDoc.save();
+
+    // 将 Buffer 写入临时文件
+    const tempPdfPath = path.join(__dirname, 'temp.pdf');
+    fs.writeFileSync(tempPdfPath, newPdfBytes);
+
+    // 将 PDF 页面转换为图片
+    const options = {
+      density: 100,
+      saveFilename: "image_pdge",
+      savePath: "./images",
+      format: "png",
+      width: 600,
+      height: 600
+    };
+    const convert = fromPath(tempPdfPath, options);
+    const pageToConvertAsImage = 1;
+    const convertPDFPagesToImages = await convert(pageToConvertAsImage, { responseType: "image" });
+
+    // 删除临时文件
+    fs.unlinkSync(tempPdfPath);
+
   }
 }

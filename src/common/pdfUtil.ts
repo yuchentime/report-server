@@ -1,26 +1,29 @@
-import * as pdf2image from 'pdf2image';
 
-export function convertPdfPageToImage(pdfPath, page, outputPath) {
-  const pdf = new pdf2image({
-    pdf: pdfPath, // 输入PDF文件路径
-    page: page, // 要转换的页面号（从1开始）
-    output: outputPath, // 输出图片路径
+import * as fs from 'fs';
+import { fromPath } from "pdf2pic";
+import { start } from 'repl';
+
+export async function convertPDFPagesToImages(pdfPath: string, startPage: number, endPage: number, outputDir: string) {
+  // 确保输出目录存在
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir);
+  }
+
+  // 配置 pdf2pic
+  const options = {
+    density: 100, // 图片质量
+    saveFilename: "page", // 图片文件名前缀
+    savePath: outputDir, // 输出目录
+    format: "png", // 图片格式
+    width: 800, // 图片宽度
+    height: 1200, // 图片高度
+  };
+
+  // 创建 pdf2pic 实例
+  fromPath(pdfPath, options)(startPage, { responseType: 'image' }).then((res: any) => {
+    console.log(res);
+  }).catch((err: any) => {
+    console.log(err);
   });
-  pdf.convertPDF(pdfPath);
-  return new Promise((resolve, reject) => {
-    pdf2image.convert(
-      {
-        pdf: pdfPath, // 输入PDF文件路径
-        page: page, // 要转换的页面号（从1开始）
-        output: outputPath, // 输出图片路径
-      },
-      function (err, imagePaths) {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(imagePaths);
-        }
-      },
-    );
-  });
+
 }
