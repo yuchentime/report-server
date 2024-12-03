@@ -24,10 +24,11 @@ export class ReportDao {
     const sql = `SELECT * FROM ${table_report} WHERE name = '${name}'`;
     console.log(sql);
     const data = await this.executeQuery(sql);
-    if (!data || data.length === 0) {
+    // 响应格式: {"totalCount": 2, "results":[]}
+    if (!data || data.results.length === 0) {
       return null;
     }
-    return data[0];
+    return data.results[0];
   }
 
   async query(report: Report) {
@@ -42,7 +43,10 @@ export class ReportDao {
       }
     }
     const data = await this.executeQuery(querySql);
-    return data;
+    if (!data || data.results.length === 0) {
+      return null;
+    }
+    return data.results[0];
   }
 
   async executeSave(sql: string) {
