@@ -5,6 +5,7 @@ import { ZhipuAI } from 'zhipuai-sdk-nodejs-v4';
 import { gist_system_prompt } from './common/constant';
 import * as pdfUtil from './common/pdfUtil';
 import * as R2Util from './common/R2Util';
+import * as stringUtil from './common/stringUtil';
 import { ReportDao } from './dao/report.dao';
 
 @Injectable()
@@ -110,12 +111,12 @@ export class AppService {
         reject('文件未落库');
       }
 
-      const fileId = String(10000 + Number(reportInDb.id));
+      const downloadFileName = stringUtil.generateRandomFiveDigitNumber(fileName);
       // 上传pdf文件
-      await R2Util.uploadToR2(fileFullPath, fileId + ".pdf");
+      await R2Util.uploadToR2(fileFullPath, downloadFileName + ".pdf");
 
       // 提取并上传pdf的样例图片
-      const imagePaths = await pdfUtil.convertPDFPagesToImages(fileFullPath, [2, 3, 4], process.env.LOCAL_IMAGE_PATH, fileId);
+      const imagePaths = await pdfUtil.convertPDFPagesToImages(fileFullPath, [2, 3, 4], process.env.LOCAL_IMAGE_PATH, downloadFileName);
 
       const r2ImageUrls: string[] = [];
       for (const imagePath of imagePaths) {
