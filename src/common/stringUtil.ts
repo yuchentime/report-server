@@ -4,3 +4,7 @@ export function generateRandomFiveDigitNumber() {
     const max = 99999; // 最大的 5 位数
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
+
+export function replaceSpecialCharsAndSpaces(input: string): string {
+  return input.replace(/[\s]+|[^\w\s]/g, '');
+}
