@@ -13,6 +13,10 @@ export class AppService {
   constructor(private readonly reportDao: ReportDao) { }
 
   async insertReport(name: string, pageCount: number, publishedDate: number) {
+    let price = 2;
+    if (pageCount > 60) {
+      price = 3;
+    }
     await this.reportDao.insert({
       name: this.replaceName(name),
       summary: '',
@@ -20,7 +24,7 @@ export class AppService {
       example_image_url: '',
       pages: pageCount,
       published_date: publishedDate,
-      ext: '{}',
+      ext: `{"price": ${price}}`,
     });
   }
 
