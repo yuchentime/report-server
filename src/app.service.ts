@@ -105,19 +105,19 @@ export class AppService {
       console.log('提取到文件名: ', fileName);
       // 判断文件名是否已落库
       const reportInDb = await this.reportDao.queryByName(fileName);
-      console.log('查询结果: ', reportInDb);
+      // console.log('查询结果: ', reportInDb);
       if (!reportInDb) {
         console.log('文件未落库');
         reject('文件未落库');
       }
 
-      const downloadFileName = stringUtil.generateRandomFiveDigitNumber(fileName);
-      // 上传pdf文件
-      await R2Util.uploadToR2(fileFullPath, downloadFileName + ".pdf");
-
+      const downloadFileName = stringUtil.generateRandomFiveDigitNumber();
+      console.log('downloadFileName: ', downloadFileName);
       // 提取并上传pdf的样例图片
       const imagePaths = await pdfUtil.convertPDFPagesToImages(fileFullPath, [2, 3, 4], process.env.LOCAL_IMAGE_PATH, downloadFileName);
 
+      // 上传pdf文件
+      await R2Util.uploadToR2(fileFullPath, downloadFileName + ".pdf");
       const r2ImageUrls: string[] = [];
       for (const imagePath of imagePaths) {
         let imageName = path.basename(imagePath);
@@ -128,7 +128,7 @@ export class AppService {
         r2ImageUrls.push(process.env.R2_IMAGE_BASE_URL + "/" + imageName);
       }
 
-      reportInDb.download_url = process.env.R2_IMAGE_BASE_URL + "/" + fileId + ".pdf";
+      reportInDb.download_url = process.env.R2_IMAGE_BASE_URL + "/" + downloadFileName + ".pdf";
       reportInDb.example_image_url = r2ImageUrls.join(',');
       await this.reportDao.update(reportInDb);
 

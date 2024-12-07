@@ -23,7 +23,8 @@ export async function convertPDFPagesToImages(pdfPath: string, pages: number[], 
     savePath: outputDir, // 输出目录
     format: "png", // 图片格式
     width: 800, // 图片宽度
-    height: 1200, // 图片高度
+    compression: 'jpeg',
+    preserveAspectRatio: true  //维持比例
   };
 
   // 创建 pdf2pic 实例
