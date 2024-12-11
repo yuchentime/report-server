@@ -20,7 +20,7 @@ export async function convertPDFPagesToImages(
     fs.mkdirSync(outputDir);
   }
 
-  console.log('pdfPath: ', pdfPath, '; name: ', name)
+  console.log('pdfPath: ', pdfPath, '; name: ', name);
   // 配置 pdf2pic
   const options = {
     density: 100, // 图片质量
@@ -28,6 +28,7 @@ export async function convertPDFPagesToImages(
     savePath: outputDir, // 输出目录
     format: 'png', // 图片格式
     width: 800, // 图片宽度
+    // height: 1000,
     preserveAspectRatio: true, //维持比例
   };
 
