@@ -4,12 +4,14 @@ import { table_report } from 'src/common/constant';
 
 @Injectable()
 export class ReportDao {
-  async insert(report: Report) {
+  async save(report: Report) {
     const data = await this.queryByName(report.name);
+    let sql: string;
     if (data) {
-      return;
+      sql = `UPDATE ${table_report} SET pages = ${report.pages}, published_date = ${report.published_date}`;
+    } else {
+      sql = `INSERT INTO ${table_report} (name, pages, published_date) VALUES ('${report.name}', ${report.pages}, ${report.published_date})`;
     }
-    const sql = `INSERT INTO ${table_report} (name, pages, published_date) VALUES ('${report.name}', ${report.pages}, ${report.published_date})`;
     console.log(sql);
     await this.executeSave(sql);
   }

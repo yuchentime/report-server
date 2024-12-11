@@ -27,7 +27,7 @@ export class AppService {
       price = 5;
     }
     const publishedDate = Number(publish_date.replace(/\//g, ''));
-    this.reportDao.insert({
+    this.reportDao.save({
       name: this.replaceName(name),
       summary: '',
       download_url: '',
@@ -73,9 +73,10 @@ export class AppService {
           } else if (pageCount > 100) {
             price = 5;
           }
-          const publishedDate = Number(publish_date.replace(/\//g, ''));
-          this.reportDao.insert({
-            name: this.replaceName(name),
+          const realName = this.replaceName(name);
+          const publishedDate = this.convertDateToEightDigits(publish_date);
+          this.reportDao.save({
+            name: realName,
             summary: '',
             download_url: '',
             example_image_url: '',
@@ -91,6 +92,19 @@ export class AppService {
     }
 
     console.log('报告数据初始化完毕');
+  }
+
+  private convertDateToEightDigits(dateStr: string): number {
+    // 拆分日期字符串
+    const parts = dateStr.split('/');
+
+    // 确保每个部分都有两位数字
+    const year = parts[0];
+    const month = parts[1].padStart(2, '0');
+    const day = parts[2].padStart(2, '0');
+
+    // 拼接成8位数的日期字符串
+    return Number(year + month + day);
   }
 
   private readCsvFile(filePath: string): Promise<any[]> {
