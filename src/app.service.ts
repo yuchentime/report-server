@@ -164,7 +164,8 @@ export class AppService {
         reportInDb.name = fileName;
         reportInDb.summary = summary.replace(/\n/g, '').replace(/```html/g, '').replace(/```/g, '');
         await this.reportDao.update(reportInDb);
-
+        // todo 将摘要和文件名按特定格式写入coze知识库
+        
         resolve(reportInDb);
       }
     });
