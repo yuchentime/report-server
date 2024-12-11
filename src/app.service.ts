@@ -9,6 +9,7 @@ import * as stringUtil from './common/stringUtil';
 import { ReportDao } from './dao/report.dao';
 import * as csvParser from 'csv-parser';
 import * as iconv from 'iconv-lite';
+import * as process from 'node:process';
 
 @Injectable()
 export class AppService {
@@ -112,23 +113,17 @@ export class AppService {
     });
   }
 
-  async summary() {
+  async summary(name: string) {
     const directory = process.env.LOCAL_PDF_PATH;
     const fileFullPaths = await this.scanPdfDirectory(directory);
-    console.log('==> ', fileFullPaths);
     // 每10个fileFullPaths为一批处理，每批间隔5秒
-    for (let i = 0; i < fileFullPaths.length; i += 10) {
-      const batch = fileFullPaths.slice(i, i + 10);
-      // console.log('batch: ', batch);
-      Promise.allSettled(
-        batch.map(async (fileFullPath) => {
-          this.writeSummary(fileFullPath);
-        }),
-      ).then((reports) => {
-        console.log('reports: ', reports);
-        return reports;
-      });
-      await new Promise((resolve) => setTimeout(resolve, 10000));
+    for (let i = 0; i < fileFullPaths.length; i += 1) {
+      // console.log('==> ', path.basename(fileFullPaths[i]).trim());
+      if (name && name !== path.basename(fileFullPaths[i]).trim()) {
+        continue;
+      }
+      await this.writeSummary(fileFullPaths[i]);
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
     console.log('pdf摘要完毕');
   }
@@ -138,33 +133,30 @@ export class AppService {
     const fileFullPaths = await this.scanPdfDirectory(directory);
     console.log('==> ', fileFullPaths);
     for (let i = 0; i < fileFullPaths.length; i += 10) {
-      const batch = fileFullPaths.slice(i, i + 10);
-      Promise.allSettled(
-        batch.map((fileFullPath) => this.writePdfImages(fileFullPath)),
-      ).then((reports) => {
-        console.log('reports: ', reports);
-        return reports;
-      });
-      await new Promise((resolve) => setTimeout(resolve, 10000));
+      try {
+        await this.writePdfImages(fileFullPaths[i]);
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      } catch (e) {
+        console.error('上传pdf错误: ', fileFullPaths[i]);
+      }
     }
     console.log('pdf图片提取完毕');
   }
 
-  async writeSummary(fileFullPath: string): Promise<string> {
-    return new Promise(async (resolve, reject) => {
-      // 读取文件二进制内容
-      const data = fs.readFileSync(fileFullPath);
-      console.log('提取到文件二进制内容');
-      const fileName = this.replaceName(path.basename(fileFullPath));
+  async writeSummary(fileFullPath: string) {
+    // 读取文件二进制内容
+    const data = fs.readFileSync(fileFullPath);
+    console.log('提取到文件二进制内容');
+    const fileName = this.replaceName(path.basename(fileFullPath));
 
-      // 判断文件名是否已落库
-      const reportInDb = await this.reportDao.queryByName(fileName);
-      console.log('查询结果: ', reportInDb);
-      if (!reportInDb) {
-        console.log('文件未落库');
-        reject('文件未落库');
-      }
+    // 判断文件名是否已落库
+    const reportInDb = await this.reportDao.queryByName(fileName);
+    console.log('查询结果: ', reportInDb);
+    if (!reportInDb) {
+      console.log('文件未落库');
+    }
 
+    try {
       console.log('提取到文件名: ', fileName);
       const extractedContent = await this.extractContent(
         data,
@@ -172,7 +164,6 @@ export class AppService {
       );
       if (!extractedContent) {
         console.log('没有提取到文件摘要');
-        reject('没有提取到文件摘要');
       }
       console.log('提取到文件摘要');
 
@@ -185,15 +176,65 @@ export class AppService {
           .replace(/```html/g, '')
           .replace(/```/g, '');
         await this.reportDao.update(reportInDb);
-        // todo 将摘要和文件名按特定格式写入coze知识库
-        await this.writeCoze(fileName, summary);
-        resolve(reportInDb);
+        console.log('文件摘要保存完毕，准备写入coze');
+        //  将摘要和文件名按特定格式写入coze知识库
+        const txtPath = path.join(
+          process.env.LOCAL_PDF_PATH,
+          `${fileName}.txt`,
+        );
+        const textContent = reportInDb.summary.replace(/<[^>]+>/g, '');
+        fs.writeFileSync(txtPath, textContent);
+      } else {
+        console.error('摘要提取失败，文件：', fileName);
       }
-    });
+    } catch (error) {
+      console.error('Error during processing:', error);
+    }
   }
 
-  async writeCoze(name: string, summary: string) {
+  async importCoze() {
+    const directory = process.env.LOCAL_PDF_PATH;
+    const files = fs
+      .readdirSync(directory)
+      .filter((file) => file.endsWith('.txt'));
 
+    for (const file of files) {
+      const filePath = path.join(directory, file);
+      const txtFileData = fs.readFileSync(filePath);
+      fetch(process.env.COZE_DOCUMENT_CREATE_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Agw-Js-Conv': 'str',
+          Authorization: `Bearer ${process.env.COZE_SECRET_TOKEN}`,
+        },
+        body: JSON.stringify({
+          dataset_id: process.env.COZE_DB_ID,
+          document_bases: [
+            {
+              name: path.basename(file, '.txt'),
+              source_info: {
+                file_type: 'txt',
+                file_base64: txtFileData.toString('base64'),
+              },
+            },
+          ],
+          chunk_strategy: {
+            chunk_type: 0,
+            max_tokens: 1024,
+          },
+        }),
+      })
+        .then((response) => {
+          console.log('response: ', response);
+        })
+        .catch((error) => {
+          console.error('Error during processing coze :', error.message);
+        });
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    console.log('coze导入完毕');
   }
 
   async writePdfImages(fileFullPath: string) {
@@ -203,7 +244,7 @@ export class AppService {
       // 判断文件名是否已落库
       const reportInDb = await this.reportDao.queryByName(fileName);
       // console.log('查询结果: ', reportInDb);
-      if (!reportInDb) {
+      if (reportInDb?.totalCount ?? 0 > 0) {
         console.log('文件未落库');
         reject('文件未落库');
       }
@@ -219,23 +260,27 @@ export class AppService {
       );
 
       // 上传pdf文件
-      await R2Util.uploadToR2(fileFullPath, downloadFileName + '.pdf');
-      const r2ImageUrls: string[] = [];
-      for (const imagePath of imagePaths) {
-        let imageName = path.basename(imagePath);
-        imageName = imageName.replace('.png', '').replace('.', '') + '.png';
+      try {
+        await R2Util.uploadToR2(fileFullPath, downloadFileName + '.pdf');
+        const r2ImageUrls: string[] = [];
+        for (const imagePath of imagePaths) {
+          let imageName = path.basename(imagePath);
+          imageName = imageName.replace('.png', '').replace('.', '') + '.png';
 
-        await R2Util.uploadToR2(imagePath, imageName);
-        fs.unlinkSync(imagePath);
-        r2ImageUrls.push(process.env.R2_IMAGE_BASE_URL + '/' + imageName);
+          await R2Util.uploadToR2(imagePath, imageName);
+          fs.unlinkSync(imagePath);
+          r2ImageUrls.push(process.env.R2_IMAGE_BASE_URL + '/' + imageName);
+        }
+
+        reportInDb.download_url =
+          process.env.R2_IMAGE_BASE_URL + '/' + downloadFileName + '.pdf';
+        reportInDb.example_image_url = r2ImageUrls.join(',');
+        await this.reportDao.update(reportInDb);
+        resolve(reportInDb);
+      } catch (e) {
+        console.error(e);
+        reject(e);
       }
-
-      reportInDb.download_url =
-        process.env.R2_IMAGE_BASE_URL + '/' + downloadFileName + '.pdf';
-      reportInDb.example_image_url = r2ImageUrls.join(',');
-      await this.reportDao.update(reportInDb);
-
-      resolve(reportInDb);
     });
   }
 

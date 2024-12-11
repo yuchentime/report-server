@@ -30,24 +30,6 @@ export class ReportDao {
     return data.results[0];
   }
 
-  async query(report: Report) {
-    let querySql = `SELECT * FROM ${table_report}`;
-    if (report) {
-      querySql += ` WHERE 1=1`;
-      if (report.id) {
-        querySql += ` AND id = ${report.id}`;
-      }
-      if (report.name) {
-        querySql += ` AND name = '${report.name}'`;
-      }
-    }
-    const data = await this.executeQuery(querySql);
-    if (!data || data.results.length === 0) {
-      return null;
-    }
-    return data.results[0];
-  }
-
   async executeSave(sql: string) {
     try {
       const response = await fetch(process.env.CLOUDFLARE_DATABASE_URL, {
@@ -70,12 +52,28 @@ export class ReportDao {
 
   async executeQuery(sql: string) {
     const queryUrl = `${process.env.CLOUDFLARE_DATABASE_URL}?query=${encodeURIComponent(sql)}`;
-    const response = await fetch(queryUrl, {
-      headers: {
-        Authorization: `Bearer ${process.env.CLOUDFLARE_SECRET_TOKEN}`,
-      },
-    });
-    const data = await response.json();
-    return data;
+    let response;
+    try {
+      response = await fetch(queryUrl, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${process.env.CLOUDFLARE_SECRET_TOKEN}`,
+        },
+      });
+    } catch (error) {
+      console.error('查询异常: ', sql);
+      return {
+        totalCount: 0,
+        results: [],
+      };
+    }
+    if (!response.ok) {
+      console.error('查询异常: ', sql);
+      return {
+        totalCount: 0,
+        results: [],
+      };
+    }
+    return await response.json();
   }
 }

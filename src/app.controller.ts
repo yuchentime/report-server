@@ -1,4 +1,4 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { AppService } from './app.service';
 
 @Controller()
@@ -6,8 +6,9 @@ export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @Get('/summary')
-  async summary() {
-    this.appService.summary();
+  async summary(@Query('name') name: string) {
+    console.log('summary==>', name);
+    this.appService.summary(name);
     return { msg: 'ok' };
   }
 
@@ -17,10 +18,15 @@ export class AppController {
     return { msg: 'ok' };
   }
 
-  @Post('/init')
+  @Get('/init')
   async intReport() {
     await this.appService.initReport();
     return { msg: 'ok' };
   }
 
+  @Get('/coze')
+  async report() {
+    this.appService.importCoze();
+    return { msg: 'ok' };
+  }
 }
