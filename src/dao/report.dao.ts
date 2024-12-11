@@ -4,7 +4,6 @@ import { table_report } from 'src/common/constant';
 
 @Injectable()
 export class ReportDao {
-
   async insert(report: Report) {
     const data = await this.queryByName(report.name);
     if (data) {
@@ -12,7 +11,7 @@ export class ReportDao {
     }
     const sql = `INSERT INTO ${table_report} (name, pages, published_date) VALUES ('${report.name}', ${report.pages}, ${report.published_date})`;
     console.log(sql);
-    this.executeSave(sql);
+    await this.executeSave(sql);
   }
 
   async update(report: Report) {
@@ -54,10 +53,10 @@ export class ReportDao {
       const response = await fetch(process.env.CLOUDFLARE_DATABASE_URL, {
         method: 'POST',
         headers: {
-          'Content-Type': 'text/plain',
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${process.env.CLOUDFLARE_SECRET_TOKEN}`,
         },
-        body: sql,
+        body: JSON.stringify({ sql }),
       });
       if (response.ok) {
         console.log('Data saved successfully');

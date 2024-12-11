@@ -1,25 +1,26 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Controller, Get, Post } from '@nestjs/common';
 import { AppService } from './app.service';
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) { }
+  constructor(private readonly appService: AppService) {}
 
-  @Get("/summary")
+  @Get('/summary')
   async summary() {
     this.appService.summary();
-    return { msg: "ok" };
+    return { msg: 'ok' };
   }
 
-  @Get("/img")
+  @Get('/img')
   async img() {
     this.appService.extractPdfImages();
-    return { msg: "ok" };
+    return { msg: 'ok' };
   }
 
-  @Post("/insert")
-  async insertReport(@Body("name") name: string, @Body("pageCount") pageCount: number, @Body("publishedDate") publishedDate: number) {
-    await this.appService.insertReport(name, pageCount, publishedDate);
-    return { msg: "ok" };
+  @Post('/init')
+  async intReport() {
+    await this.appService.initReport();
+    return { msg: 'ok' };
   }
+
 }
