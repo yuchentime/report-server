@@ -20,6 +20,7 @@ export async function convertPDFPagesToImages(
     fs.mkdirSync(outputDir);
   }
 
+  console.log('pdfPath: ', pdfPath, '; name: ', name)
   // 配置 pdf2pic
   const options = {
     density: 100, // 图片质量

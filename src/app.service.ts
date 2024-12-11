@@ -132,7 +132,7 @@ export class AppService {
     const directory = process.env.LOCAL_PDF_PATH;
     const fileFullPaths = await this.scanPdfDirectory(directory);
     console.log('==> ', fileFullPaths);
-    for (let i = 0; i < fileFullPaths.length; i += 10) {
+    for (let i = 0; i < 1; i += 1) {
       try {
         await this.writePdfImages(fileFullPaths[i]);
         await new Promise((resolve) => setTimeout(resolve, 500));
@@ -261,7 +261,7 @@ export class AppService {
 
       // 上传pdf文件
       try {
-        await R2Util.uploadToR2(fileFullPath, downloadFileName + '.pdf');
+        // await R2Util.uploadToR2(fileFullPath, downloadFileName + '.pdf');
         const r2ImageUrls: string[] = [];
         for (const imagePath of imagePaths) {
           let imageName = path.basename(imagePath);
