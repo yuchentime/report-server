@@ -7,6 +7,7 @@ import * as pdfUtil from './common/pdfUtil';
 import * as R2Util from './common/R2Util';
 import * as stringUtil from './common/stringUtil';
 import { ReportDao } from './dao/report.dao';
+import * as csvParser from 'csv-parser';
 
 @Injectable()
 export class AppService {
@@ -28,9 +29,75 @@ export class AppService {
     });
   }
 
+  async initReport() {
+    // 1. 从.env中获取目录路径
+    const directoryPath = process.ENV.CSV_DIRECTORY_PATH;
+    
+    if (!directoryPath) {
+      console.error('CSV directory path is not specified in the .env file.');
+      return;
+    }
+
+    try {
+      // 2. 读取指定目录中的所有csv文件
+      const files = fs.readdirSync(directoryPath).filter(file => file.endsWith('.csv'));
+
+      for (const file of files) {
+        const filePath = path.join(directoryPath, file);
+        
+        // 3. 读取并遍历每个csv文件
+        const records = await this.readCsvFile(filePath);
+
+        for (const record of records) {
+          // 4. 按表头取得每一个字段并打印
+          const { name, publish_date, pages } = record;
+          console.log(`Name: ${name}, publish_date: ${publish_date}, Pages: ${pages}`);
+          const pageCount = Number(pages.replace("页",""))
+          let price = 2;
+          if (pageCount > 60) {
+            price = 3;
+          } else if (pageCount > 100) {
+            price = 5;
+          }
+          const publishedDate = Number(publish_date.replace(/-/g, ""))
+          await this.reportDao.insert({
+            name: this.replaceName(name),
+            summary: '',
+            download_url: '',
+            example_image_url: '',
+            pages: pageCount,
+            published_date: publishedDate,
+            ext: `{"price": ${price}}`,
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error reading CSV files:', err);
+    }
+  }
+
+  private readCsvFile(filePath: string): Promise<any[]> {
+    return new Promise((resolve, reject) => {
+      const results: any[] = [];
+      
+      // 读取csv文件并解析
+      fs.createReadStream(filePath)
+        .pipe(csvParser())
+        .on('data', (row) => {
+          results.push(row);
+        })
+        .on('end', () => {
+          resolve(results);
+        })
+        .on('error', (error) => {
+          reject(error);
+        });
+    });
+  }
+
   async summary() {
     const directory = process.env.LOCAL_PDF_PATH;
-    const fileFullPaths = await this.scanDirectory(directory);
+    const fileFullPaths = await this.scanPdfDirectory(directory);
     console.log('==> ', fileFullPaths);
     // 每10个fileFullPaths为一批处理，每批间隔5秒
     for (let i = 0; i < fileFullPaths.length; i += 10) {
@@ -51,7 +118,7 @@ export class AppService {
 
   async extractPdfImages() {
     const directory = process.env.LOCAL_PDF_PATH;
-    const fileFullPaths = await this.scanDirectory(directory);
+    const fileFullPaths = await this.scanPdfDirectory(directory);
     console.log('==> ', fileFullPaths);
     for (let i = 0; i < fileFullPaths.length; i += 10) {
       const batch = fileFullPaths.slice(i, i + 10);
@@ -140,11 +207,11 @@ export class AppService {
     });
   }
 
-  async scanDirectory(directory: string): Promise<string[]> {
+  async scanPdfDirectory(directory: string): Promise<string[]> {
     const files: string[] = [];
     const entries = fs.readdirSync(directory, {
       withFileTypes: true,
-    });
+    }).filter(file => file.endsWith('.pdf'));
     for (const entry of entries) {
       const fullPath = path.join(directory, entry.name);
       if (entry.isDirectory()) {
