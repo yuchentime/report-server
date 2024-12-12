@@ -148,7 +148,7 @@ export class AppService {
     console.log('==> ', fileFullPaths);
     for (let i = 0; i < fileFullPaths.length; i += 1) {
       try {
-        await this.writePdfImages(fileFullPaths[i]);
+        await this.uploadPdfImages(fileFullPaths[i]);
         await new Promise((resolve) => setTimeout(resolve, 500));
       } catch (e) {
         console.error('上传pdf错误: ', fileFullPaths[i]);
@@ -251,7 +251,7 @@ export class AppService {
     console.log('coze导入完毕');
   }
 
-  async writePdfImages(fileFullPath: string) {
+  async uploadPdfImages(fileFullPath: string) {
     return new Promise(async (resolve, reject) => {
       const fileName = this.replaceName(path.basename(fileFullPath));
       console.log('提取到文件名: ', fileName);
