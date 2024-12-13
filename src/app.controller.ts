@@ -5,6 +5,12 @@ import { AppService } from './app.service';
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
+  @Get('/init')
+  async intReport() {
+    await this.appService.initReport();
+    return { msg: 'ok' };
+  }
+
   @Get('/summary')
   async summary(@Query('name') name: string) {
     console.log('summary==>', name);
@@ -15,12 +21,6 @@ export class AppController {
   @Get('/img')
   async img() {
     this.appService.extractPdfImages();
-    return { msg: 'ok' };
-  }
-
-  @Get('/init')
-  async intReport() {
-    await this.appService.initReport();
     return { msg: 'ok' };
   }
 

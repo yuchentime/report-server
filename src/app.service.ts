@@ -150,8 +150,8 @@ export class AppService {
       try {
         await this.uploadPdfImages(fileFullPaths[i]);
         await new Promise((resolve) => setTimeout(resolve, 500));
-      } catch (e) {
-        console.error('上传pdf错误: ', fileFullPaths[i]);
+      } catch (e: any) {
+        console.error('上传pdf错误: ', fileFullPaths[i], e.mssage);
       }
     }
     console.log('pdf图片提取完毕');
