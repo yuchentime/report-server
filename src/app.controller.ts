@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Body, Controller, Get, Put, Query } from '@nestjs/common';
 import { AppService } from './app.service';
 
 @Controller()
@@ -7,7 +7,7 @@ export class AppController {
 
   @Get('/init')
   async intReport() {
-    await this.appService.initReport();
+    this.appService.initReport();
     return { msg: 'ok' };
   }
 
@@ -18,8 +18,8 @@ export class AppController {
     return { msg: 'ok' };
   }
 
-  @Get('/img')
-  async img() {
+  @Get('/upload')
+  async upload() {
     this.appService.extractPdfImages();
     return { msg: 'ok' };
   }
@@ -27,6 +27,22 @@ export class AppController {
   @Get('/coze')
   async report() {
     this.appService.importCoze();
+    return { msg: 'ok' };
+  }
+
+  @Put('/user/update-vip')
+  async updateUser(
+    @Body('email') email: string,
+    @Query('isVip') isVip: number,
+    @Query('days') days = 0,
+  ) {
+    if (!email) {
+      return { msg: 'email is empty' };
+    }
+    if (isVip !== 1 && isVip !== 0) {
+      return { msg: 'vip is not 1 or 0' };
+    }
+    await this.appService.updateUser(email, isVip, days);
     return { msg: 'ok' };
   }
 }

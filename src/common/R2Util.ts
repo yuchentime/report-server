@@ -1,7 +1,7 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import * as dotenv from "dotenv";
-import * as fs from "fs";
-import * as path from "path";
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import * as dotenv from 'dotenv';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // 加载环境变量
 dotenv.config();
@@ -13,7 +13,7 @@ const s3Client = new S3Client({
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
   },
-  endpoint: "https://05a892b35f083d59d5c4108dd423c780.r2.cloudflarestorage.com", // 替换为你的 Cloudflare R2 端点
+  endpoint: 'https://05a892b35f083d59d5c4108dd423c780.r2.cloudflarestorage.com', // 替换为你的 Cloudflare R2 端点
 });
 
 /**
@@ -29,7 +29,7 @@ export async function uploadToR2(filePath: string, key: string): Promise<void> {
       Bucket: process.env.BUCKET_NAME,
       Key: key,
       Body: fileContent,
-      ContentType: "image/png", // 根据文件类型调整
+      ContentType: filePath.endsWith('.pdf') ? 'application/pdf' : 'image/png',
     };
 
     const command = new PutObjectCommand(params);
@@ -37,17 +37,17 @@ export async function uploadToR2(filePath: string, key: string): Promise<void> {
 
     console.log(`File uploaded successfully: ${key}`);
   } catch (error) {
-    console.error("Error uploading file to R2:", error);
+    console.error('Error uploading file to R2:', error);
     throw error;
   }
 }
 
 // 示例使用
 if (require.main === module) {
-  const filePath = path.join(__dirname, "example.png"); // 替换为你的文件路径
-  const key = "example.png"; // 替换为你的对象键
+  const filePath = path.join(__dirname, 'example.png'); // 替换为你的文件路径
+  const key = 'example.png'; // 替换为你的对象键
 
   uploadToR2(filePath, key)
-    .then(() => console.log("Upload complete"))
-    .catch((err) => console.error("Upload failed:", err));
+    .then(() => console.log('Upload complete'))
+    .catch((err) => console.error('Upload failed:', err));
 }

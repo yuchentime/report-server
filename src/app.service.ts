@@ -10,10 +10,14 @@ import { ReportDao } from './dao/report.dao';
 import * as csvParser from 'csv-parser';
 import * as iconv from 'iconv-lite';
 import * as process from 'node:process';
+import { UserDao } from './dao/user.dao';
 
 @Injectable()
 export class AppService {
-  constructor(private readonly reportDao: ReportDao) {}
+  constructor(
+    private readonly reportDao: ReportDao,
+    private readonly userDao: UserDao,
+  ) {}
 
   async insert(name: string, pages: string, publish_date: string) {
     if (!name || !publish_date || !pages) {
@@ -75,7 +79,7 @@ export class AppService {
           }
           const realName = this.replaceName(name);
           const publishedDate = this.convertDateToEightDigits(publish_date);
-          this.reportDao.save({
+          const reportInfo = {
             name: realName,
             summary: '',
             download_url: '',
@@ -83,7 +87,9 @@ export class AppService {
             pages: pageCount,
             published_date: publishedDate,
             ext: `{'price': ${price}}`,
-          });
+          };
+          console.log('准备保存报告: ', reportInfo);
+          this.reportDao.save(reportInfo);
           await new Promise((resolve) => setTimeout(resolve, 500));
         }
       }
@@ -151,7 +157,7 @@ export class AppService {
         await this.uploadPdfImages(fileFullPaths[i]);
         await new Promise((resolve) => setTimeout(resolve, 500));
       } catch (e: any) {
-        console.error('上传pdf错误: ', fileFullPaths[i], e.mssage);
+        console.error('上传pdf错误: ', fileFullPaths[i], e.message);
       }
     }
     console.log('pdf图片提取完毕');
@@ -258,9 +264,10 @@ export class AppService {
       // 判断文件名是否已落库
       const reportInDb = await this.reportDao.queryByName(fileName);
       // console.log('查询结果: ', reportInDb);
-      if (reportInDb?.totalCount ?? 0 > 0) {
+      if (!reportInDb) {
         console.log('文件未落库');
         reject('文件未落库');
+        return;
       }
 
       const downloadFileName = stringUtil.generateRandomFiveDigitNumber();
@@ -379,5 +386,9 @@ export class AppService {
     return fileName
       .replace('【发现报告 fxbaogao.com】', '')
       .replace('.pdf', '');
+  }
+
+  async updateUser(email: string, vip: number, days: number) {
+    return await this.userDao.updateUser(email, vip, days);
   }
 }

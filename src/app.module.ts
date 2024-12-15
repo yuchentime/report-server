@@ -5,6 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ReportDao } from './dao/report.dao';
 import { GlobalExceptionHandler } from './common/GlobalExceptionHandler';
 import { APP_FILTER } from '@nestjs/core';
+import { UserDao } from './dao/user.dao';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { APP_FILTER } from '@nestjs/core';
   providers: [
     AppService,
     ReportDao,
+    UserDao,
     { provide: APP_FILTER, useClass: GlobalExceptionHandler },
   ],
 })
